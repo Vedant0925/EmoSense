@@ -1,4 +1,4 @@
-
+# import required libraries
 import pandas as pd
 import numpy as np
 import nltk
@@ -21,16 +21,25 @@ lyrics_matrix = vectorizer.fit_transform(merged_data['lyrics'])
 lyrics_similarity = cosine_similarity(lyrics_matrix)
 
 
-def recommend_songs(song_id, num_recommendations=10):
-    
+def recommend_songs(song_id, mood, num_recommendations=10):
+
     song_index = merged_data[merged_data['song_id'] == song_id].index[0]
-    
+
     song_similarities = lyrics_similarity[song_index]
-    
-    similar_song_indices = np.argsort(-song_similarities)[1:num_recommendations+1]
-    
+
+    mood_data = merged_data[merged_data['mood'] == mood]
+
+    mood_indices = mood_data.index
+
+    mood_similarities = song_similarities[mood_indices]
+
+    similar_song_indices = mood_indices[np.argsort(-mood_similarities)][1:num_recommendations+1]
+
     return list(merged_data.iloc[similar_song_indices]['song_id'])
 
-# example usage: recommend 10 songs similar to "7 rings" by Ariana Grande
-recommendations = recommend_songs('6ocbgoVGwYJhOv1GgI9NsF', num_recommendations=10)
-print(recommendations)
+# example usage
+song_id = input("Enter song id: ")
+mood = input("Enter mood: ")
+num_recommendations = int(input("Number of songs you'd like: "))
+recommended_songs = recommend_songs(song_id, mood, num_recommendations)
+print(recommended_songs)
