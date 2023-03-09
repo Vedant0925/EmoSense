@@ -1,45 +1,70 @@
-# import required libraries
 import pandas as pd
-import numpy as np
-import nltk
-import sklearn
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import lyricsgenius
+from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
+SPOTIFY_CLIENT_ID = 'aa087ea1788347d1a6a4b30cbd6fdd34'
+SPOTIFY_CLIENT_SECRET = 'cac4f4e8e70f4a35b163665d533dd479'
+
+spotify_credentials = SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
+spotify = spotipy.Spotify(client_credentials_manager=spotify_credentials)
+
+genius = lyricsgenius.Genius('DyZvAtC52zoMh8uy90ZHZ2RGnIaxpGqVLsMwAjwfWrP7UhkVEJFv-5NPcYn4UXHy')
+
+lyrics_df = pd.read_csv('/Users/vedant/Desktop/IR_Datasets/lyrics.csv', usecols=['artist', 'song_name', 'lyrics'])
+
+analyzer = SentimentIntensityAnalyzer()
 
 
-spotify_data = pd.read_csv('spotify_data.csv')
-lyrics_data = pd.read_csv('lyrics_data.csv')
+lyrics_df['sentiment'] = lyrics_df['lyrics'].apply(lambda x: analyzer.polarity_scores(x)['compound'])
+
+user_mood = input("What is your current mood? ")
 
 
-merged_data = pd.merge(spotify_data, lyrics_data, on='song_id')
+if user_mood in ['happy', 'cheerful', 'upbeat']:
+    query = 'mood:happy OR mood:cheerful OR mood:upbeat'
+    
+elif user_mood in ['sad', 'melancholy', 'depressed']:
+    query = 'mood:sad OR mood:melancholy OR mood:depressed'
+    
+elif user_mood in ['angry', 'frustrated', 'irritated']:
+    query = 'mood:angry OR mood:frustrated OR mood:irritated'
+    
+else:
+    query = 'mood:' + user_mood
 
+results = spotify.search(q=query, type='track', limit=10)
+tracks = results['tracks']['items']
 
-vectorizer = TfidfVectorizer()
-lyrics_matrix = vectorizer.fit_transform(merged_data['lyrics'])
+sentiments = []
 
+for track in tracks:
+    song = genius.search_song(track['name'], track['artists'][0]['name'])
+    if song:
+        lyrics = song.lyrics
+        sentiment = analyzer.polarity_scores(lyrics)['compound']
+        sentiments.append(sentiment)
 
-lyrics_similarity = cosine_similarity(lyrics_matrix)
+mean_sentiment = sum(sentiments) / len(sentiments)
 
+if mean_sentiment > 0.5:
+    print("You seem to be in a good mood. Here are some upbeat songs you might like:")
+    upbeat_songs = lyrics_df[lyrics_df['lyrics'].str.contains(user_mood, case=False) & (lyrics_df['sentiment'] > 0.5)].sample(10)['song_name'].tolist()
+    for song in upbeat_songs:
+        print(song)
 
-def recommend_songs(song_id, mood, num_recommendations=10):
+elif mean_sentiment < -0.5:
+    print("You seem to be in a bad mood. Here are some calming songs you might like:")
+    calming_songs = lyrics_df[lyrics_df['lyrics'].str.contains(user_mood, case=False) & (lyrics_df['sentiment'] < -0.5)].sample(10)['song_name'].tolist()
+    for song in calming_songs:
+        print(song)
 
-    song_index = merged_data[merged_data['song_id'] == song_id].index[0]
+else:
+    print("You seem to be in a neutral mood. Here are some popular songs you might like:")
+    popular_songs = lyrics_df[lyrics_df['lyrics'].str.contains(user_mood, case=False) | lyrics_df['song_name'].str.contains(user_mood,case=False)].sample(10)['song_name'].tolist()
 
-    song_similarities = lyrics_similarity[song_index]
+    for song in popular_songs:
+        print(song)
 
-    mood_data = merged_data[merged_data['mood'] == mood]
-
-    mood_indices = mood_data.index
-
-    mood_similarities = song_similarities[mood_indices]
-
-    similar_song_indices = mood_indices[np.argsort(-mood_similarities)][1:num_recommendations+1]
-
-    return list(merged_data.iloc[similar_song_indices]['song_id'])
-
-# example usage
-song_id = input("Enter song id: ")
-mood = input("Enter mood: ")
-num_recommendations = int(input("Number of songs you'd like: "))
-recommended_songs = recommend_songs(song_id, mood, num_recommendations)
-print(recommended_songs)
