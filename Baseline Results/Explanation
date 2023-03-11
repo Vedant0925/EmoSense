@@ -1,0 +1,14 @@
+API's used-Spotify and Genius API
+
+Libraries used-vaderSentiment for lyrical sentimental analysis.
+               TextBlob for natural language processing
+               spotipy for the Spotify API
+               lyricsgenius for the Genius API
+              
+External files-lyrics.csv(submitted as a zip) for the lyrics of all songs.
+               spotify_data.json for audio factors from spotify.
+               
+Mood taken as input and then spotify api is used to retrieve songs that match mood and retrieve artist and track names.
+Each track is then fed to Genius API to extract lyrics of that and using vaderSentiment, we assign a sentiment score to each.
+A new column is created in lyrics.csv that stores the sentiment score next to each track.
+Calculate mean sentiment of returned tracks and based on that and user mood input, recommend ten best matching songs.
