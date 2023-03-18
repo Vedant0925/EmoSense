@@ -106,31 +106,30 @@ def train_model(df, n_clusters=10):
 #     recommendations = df[df['cluster'] == mood_cluster[0]].sample(n_recommendations)
 #
 #     return recommendations[['title', 'artist']]
-
-
 def recommend_songs(df, model, scaler, mood, n_recommendations=10):
-    mood_sentiment = sentiment_score(user_mood)
+    mood_sentiment = sentiment_score(mood)
 
+    # List the audio features used for training the model
+    audio_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
+                      'speechiness', 'tempo', 'valence']
 
-    numeric_features = df.select_dtypes(include=np.number).drop(columns='sentiment')
+    # Use the first song's audio features as a template
+    mood_features = df.loc[0, audio_features].values
 
-
-    mood_features = list(numeric_features.iloc[0].values)
-
-
+    # Replace the last feature with the mood_sentiment
     mood_features[-1] = mood_sentiment
     mood_features = np.array([mood_features])
 
-
+    # Scale the mood_features
     mood_features_scaled = scaler.transform(mood_features)
 
-
+    # Predict the cluster for the given mood
     mood_cluster = model.predict(mood_features_scaled)
 
-
+    # Get the available songs in the same cluster
     available_songs = df[df['cluster'] == mood_cluster[0]]
 
-
+    # Return either all available songs or the top N recommendations, whichever is smaller
     n_songs = min(len(available_songs), n_recommendations)
     recommendations = available_songs.sample(n_songs)
 
