@@ -64,10 +64,13 @@ def create_dataset(playlist_id):
 
     return pd.DataFrame(data)
 
+user_mood = input("Enter your mood: ")
 
+if user_mood.lower() == "sad":
+    playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
+else:
+    playlist_id = "7j8yjWybvKkVu7d0SFyH2I"
 
-playlist_id = "7j8yjWybvKkVu7d0SFyH2I"
-# playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
 df = create_dataset(playlist_id)
 
 
@@ -107,42 +110,10 @@ def recommend_songs(df, model, scaler, mood, n_recommendations=10):
     recommendations = df[df['cluster'] == mood_cluster[0]].sample(n_recommendations)
 
     return recommendations[['title', 'artist']]
-# def recommend_songs(df, model, scaler, mood, n_recommendations=10):
-#     mood_sentiment = sentiment_score(mood)
-#
-#     
-#     audio_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness',
-#                       'speechiness', 'tempo', 'valence']
-#
-#     
-#     mood_features = df.loc[0, audio_features].values
-#
-#     
-#     mood_features[-1] = mood_sentiment
-#     mood_features = np.array([mood_features])
-#
-#     
-#     mood_features_scaled = scaler.transform(mood_features)
-#
-#     
-#     mood_cluster = model.predict(mood_features_scaled)
-#
-#     
-#     available_songs = df[df['cluster'] == mood_cluster[0]]
-#
-#     
-#     n_songs = min(len(available_songs), n_recommendations)
-#     # n_songs = n_recommendations
-#     recommendations = available_songs.sample(n_songs)
-#
-#     return recommendations[['title', 'artist']]
+
 
 
 model, scaler = train_model(df)
-
-
-user_mood = input("Enter your mood: ")
-
 
 recommended_songs = recommend_songs(df, model, scaler, user_mood)
 print("\nRecommended songs for your mood:")
