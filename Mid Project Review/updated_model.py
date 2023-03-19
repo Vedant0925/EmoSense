@@ -3,6 +3,10 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from textblob import TextBlob
 import numpy as np
+import pickle
+import os
+
+
 
 
 GENIUS_API_KEY = "DyZvAtC52zoMh8uy90ZHZ2RGnIaxpGqVLsMwAjwfWrP7UhkVEJFv-5NPcYn4UXHy"
@@ -71,7 +75,16 @@ if user_mood.lower() == "sad":
 else:
     playlist_id = "7j8yjWybvKkVu7d0SFyH2I"
 
-df = create_dataset(playlist_id)
+data_file = f"{playlist_id}_data.pkl"
+
+if os.path.exists(data_file):
+    with open(data_file, 'rb') as f:
+        df = pickle.load(f)
+else:
+    df = create_dataset(playlist_id)
+    with open(data_file, 'wb') as f:
+        pickle.dump(df, f)
+
 
 
 from sklearn.preprocessing import StandardScaler
@@ -106,8 +119,8 @@ def recommend_songs(df, model, scaler, mood, n_recommendations=10):
 
     mood_cluster = model.predict(mood_features_scaled)
 
-
-    recommendations = df[df['cluster'] == mood_cluster[0]].sample(n_recommendations)
+    cluster_songs = df[df['cluster'] == mood_cluster[0]]
+    recommendations = cluster_songs.sample(min(n_recommendations, len(cluster_songs)))
 
     return recommendations[['title', 'artist']]
 
