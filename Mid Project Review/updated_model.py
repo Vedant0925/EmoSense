@@ -197,8 +197,8 @@ total_relevant = 10
 
 precision, recall, f1_score = evaluate_model(relevant_count, total_recommended, total_relevant)
 
-print(f"Precision: {precision:.2f}")
-print(f"Recall: {recall:.2f}")
+# print(f"Precision: {precision:.2f}")
+# print(f"Recall: {recall:.2f}")
 print(f"F1-score: {f1_score:.2f}")
 
 if 0<=f1_score<=0.4:
