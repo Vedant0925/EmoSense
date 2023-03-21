@@ -5,7 +5,7 @@ from textblob import TextBlob
 import numpy as np
 import pickle
 import os
-
+import pygame
 
 
 
@@ -68,9 +68,10 @@ def create_dataset(playlist_id):
 
     return pd.DataFrame(data)
 
+
 user_mood = input("Enter your mood: ")
 
-if user_mood.lower() == "sad":
+if user_mood.lower() == "sad" or user_mood.lower()=="bad":
     playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
 else:
     playlist_id = "7j8yjWybvKkVu7d0SFyH2I"
@@ -117,6 +118,7 @@ def recommend_songs(df, model, scaler, mood, n_recommendations=10):
     mood_features_scaled = scaler.transform(mood_features)
 
 
+
     mood_cluster = model.predict(mood_features_scaled)
 
     cluster_songs = df[df['cluster'] == mood_cluster[0]]
@@ -132,4 +134,65 @@ recommended_songs = recommend_songs(df, model, scaler, user_mood)
 print("\nRecommended songs for your mood:")
 print(recommended_songs)
 
+def play_song(spotify_uri):
+    pygame.mixer.init()
 
+    # Get the song's preview URL from Spotify
+    track = sp.track(spotify_uri)
+    preview_url = track['preview_url']
+
+    if preview_url is None:
+        print("Sorry, no preview is available for this song.")
+        return
+
+    # Download the preview file (it's an mp3)
+    preview_file = f"{spotify_uri}_preview.mp3"
+    if not os.path.exists(preview_file):
+        import urllib.request
+        urllib.request.urlretrieve(preview_url, preview_file)
+
+    # Play the preview
+    pygame.mixer.music.load(preview_file)
+    pygame.mixer.music.play()
+
+    # Wait for the preview to finish playing
+    while pygame.mixer.music.get_busy():
+        pygame.time.Clock().tick(10)
+
+for _, row in recommended_songs.iterrows():
+    print(f"\nPlaying '{row['title']}' by {row['artist']}")
+    track = sp.search(f"{row['title']} {row['artist']}", type='track', limit=1)
+    if track['tracks']['items']:
+        spotify_uri = track['tracks']['items'][0]['uri']
+        play_song(spotify_uri)
+    else:
+        print(f"Couldn't find the song '{row['title']}' by {row['artist']}' on Spotify.")
+
+def get_user_feedback(recommended_songs):
+    relevant_count = 0
+    total_recommended = len(recommended_songs)
+    for _, row in recommended_songs.iterrows():
+        print(f"Did you like '{row['title']}' by {row['artist']}? (yes/no)")
+        user_feedback = input().lower()
+        if user_feedback == 'yes':
+            relevant_count += 1
+    return relevant_count, total_recommended
+
+def evaluate_model(relevant_count, total_recommended, total_relevant):
+    precision = relevant_count / total_recommended if total_recommended > 0 else 0
+    recall = relevant_count / total_relevant if total_relevant > 0 else 0
+    f1_score = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+
+    return precision, recall, f1_score
+
+
+relevant_count, total_recommended = get_user_feedback(recommended_songs)
+
+
+total_relevant = 10
+
+precision, recall, f1_score = evaluate_model(relevant_count, total_recommended, total_relevant)
+
+print(f"Precision: {precision:.2f}")
+print(f"Recall: {recall:.2f}")
+print(f"F1-score: {f1_score:.2f}")
