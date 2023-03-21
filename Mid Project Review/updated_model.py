@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import os
 import pygame
-
+import threading
 
 
 GENIUS_API_KEY = "DyZvAtC52zoMh8uy90ZHZ2RGnIaxpGqVLsMwAjwfWrP7UhkVEJFv-5NPcYn4UXHy"
@@ -74,7 +74,7 @@ user_mood = input("Enter your mood: ")
 if user_mood.lower() == "sad" or user_mood.lower()=="bad":
     playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
 else:
-    playlist_id = "7j8yjWybvKkVu7d0SFyH2I"
+    playlist_id = "37i9dQZF1DXdPec7aLTmlC"
 
 data_file = f"{playlist_id}_data.pkl"
 
@@ -134,6 +134,9 @@ recommended_songs = recommend_songs(df, model, scaler, user_mood)
 print("\nRecommended songs for your mood:")
 print(recommended_songs)
 
+import pygame
+
+
 def play_song(spotify_uri):
     pygame.mixer.init()
 
@@ -168,6 +171,7 @@ for _, row in recommended_songs.iterrows():
     else:
         print(f"Couldn't find the song '{row['title']}' by {row['artist']}' on Spotify.")
 
+
 def get_user_feedback(recommended_songs):
     relevant_count = 0
     total_recommended = len(recommended_songs)
@@ -196,3 +200,10 @@ precision, recall, f1_score = evaluate_model(relevant_count, total_recommended, 
 print(f"Precision: {precision:.2f}")
 print(f"Recall: {recall:.2f}")
 print(f"F1-score: {f1_score:.2f}")
+
+if 0<=f1_score<=0.4:
+    print("Apologies for such recommendations. We shall try to do better next time")
+elif 0.4<=f1_score<=0.6:
+    print("Just okay then? We appreciate it but should certainly try to improve")
+else:
+    print("Great! We're glad you love our recommendations")
