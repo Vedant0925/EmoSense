@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Recommended Songs</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Artist</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for _, row in recommended_songs.iterrows() %}
+                <tr>
+                    <td>{{ row['title'] }}</td>
+                    <td>{{ row['artist'] }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="{{ url_for('index') }}">Go back</a>
+{% endblock %}
