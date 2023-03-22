@@ -140,7 +140,7 @@ import pygame
 def play_song(spotify_uri):
     pygame.mixer.init()
 
-    # Get the song's preview URL from Spotify
+   
     track = sp.track(spotify_uri)
     preview_url = track['preview_url']
 
@@ -148,17 +148,17 @@ def play_song(spotify_uri):
         print("Sorry, no preview is available for this song.")
         return
 
-    # Download the preview file (it's an mp3)
+    
     preview_file = f"{spotify_uri}_preview.mp3"
     if not os.path.exists(preview_file):
         import urllib.request
         urllib.request.urlretrieve(preview_url, preview_file)
 
-    # Play the preview
+    
     pygame.mixer.music.load(preview_file)
     pygame.mixer.music.play()
 
-    # Wait for the preview to finish playing
+    
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
 
