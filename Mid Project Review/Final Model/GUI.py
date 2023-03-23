@@ -52,11 +52,11 @@ def on_play_click():
     else:
         messagebox.showerror("Error", f"Couldn't find the song '{title}' by {artist}' on Spotify.")
 
-# Create a basic tkinter window
+
 root = tk.Tk()
 root.title("Mood-based Song Recommender")
 
-# Add widgets
+
 label_mood = tk.Label(root, text="Enter your mood:")
 entry_mood = tk.Entry(root)
 button_recommend = tk.Button(root, text="Recommend Songs", command=on_recommend_click)
@@ -64,7 +64,7 @@ button_recommend = tk.Button(root, text="Recommend Songs", command=on_recommend_
 listbox_songs = tk.Listbox(root)
 button_play = tk.Button(root, text="Play", command=on_play_click)
 
-# Place widgets
+
 label_mood.grid(row=0, column=0)
 entry_mood.grid(row=0, column=1)
 button_recommend.grid(row=0, column=2)
