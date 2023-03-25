@@ -7,6 +7,7 @@ import pickle
 import os
 import pygame
 import threading
+import keyboard
 
 
 GENIUS_API_KEY = "DyZvAtC52zoMh8uy90ZHZ2RGnIaxpGqVLsMwAjwfWrP7UhkVEJFv-5NPcYn4UXHy"
@@ -167,6 +168,36 @@ def play_song(spotify_uri):
 
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
+
+
+# import pygame.event
+#
+# def play_song(spotify_uri):
+#     pygame.init()
+#     pygame.mixer.init()
+#
+#     track = sp.track(spotify_uri)
+#     preview_url = track['preview_url']
+#
+#     if preview_url is None:
+#         print("Sorry, no preview is available for this song.")
+#         return
+#
+#     preview_file = f"{spotify_uri}_preview.mp3"
+#     if not os.path.exists(preview_file):
+#         import urllib.request
+#         urllib.request.urlretrieve(preview_url, preview_file)
+#
+#     pygame.mixer.music.load(preview_file)
+#     pygame.mixer.music.play()
+#
+#     while pygame.mixer.music.get_busy():
+#         pygame.time.Clock().tick(10)
+#         for event in pygame.event.get():
+#             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+#                 pygame.mixer.music.stop()
+#                 break
+
 
 for _, row in recommended_songs.iterrows():
     print(f"\nPlaying '{row['title']}' by {row['artist']}")
