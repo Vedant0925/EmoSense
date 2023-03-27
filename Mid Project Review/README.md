@@ -13,3 +13,4 @@ Songs are now recommended after a thorough sentimental analysis of the lyrics AN
 The following audio features are used-['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness', 'speechiness', 'valence', 'sentiment']
 After recommending songs, they are also played using the pygame library.
 After all are done playing, feedback is taken and f1-score is used as the main evaluation metric.
+In the event that the song isn't liked, feedback is taken and that song is replaced by the next best match.
