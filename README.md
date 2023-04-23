@@ -8,4 +8,4 @@ We have built a music recommender system based on the user's mood as detected fr
 
 The final project deliverables along with the demo video and PPT links are in the folder named 'Final'
 
-#ADD instructions to download and setup the app
+# ADD instructions to download and setup the app
