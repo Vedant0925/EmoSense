@@ -1,25 +1,29 @@
-import os
-import time
-import pickle
-import spotipy
 import lyricsgenius
-import pandas as pd
-import numpy as np
-import pygame
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 from spotipy.oauth2 import SpotifyOAuth
 from textblob import TextBlob
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
-from sklearn.neighbors import NearestNeighbors
+import numpy as np
+import pickle
+import os
+import pygame
+import threading
+import keyboard
+
 
 
 GENIUS_API_KEY = "DyZvAtC52zoMh8uy90ZHZ2RGnIaxpGqVLsMwAjwfWrP7UhkVEJFv-5NPcYn4UXHy"
-client_id = "49f3c85f3e9747c088ff47c8f471ae9c"
-client_secret = "9b1621df4a7b4a38a4b4ae3468ab3d40"
-redirect_uri = "http://localhost:8000/callback"
-scope = "user-library-read user-top-read user-read-recently-played"
+SPOTIPY_CLIENT_ID = "49f3c85f3e9747c088ff47c8f471ae9c"
+SPOTIPY_CLIENT_SECRET = "9b1621df4a7b4a38a4b4ae3468ab3d40"
+
 genius = lyricsgenius.Genius(GENIUS_API_KEY, timeout=15)
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scope=scope))
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="49f3c85f3e9747c088ff47c8f471ae9c",
+                                               client_secret="9b1621df4a7b4a38a4b4ae3468ab3d40",
+                                               redirect_uri="https://localhost:8000/callback",
+                                               scope="user-library-read user-top-read"))
+
+import time
 
 def get_lyrics(title, artist, max_retries=3, sleep_duration=2):
     retries = 0
@@ -38,101 +42,111 @@ def get_lyrics(title, artist, max_retries=3, sleep_duration=2):
     print(f"Failed to fetch lyrics for {title} by {artist} after {max_retries} retries")
     return None
 
-import time
-
-def get_top_tracks(time_range='short_term', limit=100):
-    tracks = []
-    offset = 0
-    while len(tracks) < limit:
-        results = sp.current_user_top_tracks(limit=min(50, limit - len(tracks)), offset=offset, time_range=time_range)
-        if not results['items']:
-            print("No more items in top tracks.")
-            break
-        for item in results['items']:
-            track_id = item['id']
-            title = item['name']
-            artist = item['artists'][0]['name']
-            audio_features = sp.audio_features([track_id])[0]
-            if not any([val is None for val in audio_features.values()]):  # Check if any audio feature is missing
-                tracks.append((track_id, title, artist))
-                print(f"Added track: {title} by {artist}")
-            else:
-                print(f"Skipped track due to missing audio features: {title} by {artist}")
-        offset += 50
-    return tracks
 
 
+def get_audio_features(track_id):
+    return sp.audio_features([track_id])[0]
 
-
-
-# Collaborative filtering
-# def collaborative_filtering(tracks, n_neighbors=50):
-#     track_ids = [track[0] for track in tracks]
-#     audio_features = sp.audio_features(track_ids)
-#     track_features = pd.DataFrame(audio_features)
-#     scaler = StandardScaler()
-#     track_features_scaled = scaler.fit_transform(track_features)
-#     model = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree', metric='euclidean')
-#     model.fit(track_features_scaled)
-#     _, indices = model.kneighbors(track_features_scaled)
-#     return [tracks[idx] for idx in indices.flatten()]
-
-def collaborative_filtering(tracks, n_neighbors=50):
-    if not history:
-        print("No tracks found in listening history.")
-        return []
-    track_ids = [track[0] for track in tracks]
-    audio_features = sp.audio_features(track_ids)
-    track_features = pd.DataFrame(audio_features).dropna()  # Add dropna() here
-    scaler = StandardScaler()
-    track_features_scaled = scaler.fit_transform(track_features)
-    model = NearestNeighbors(n_neighbors=n_neighbors, algorithm='ball_tree', metric='euclidean')
-    model.fit(track_features_scaled)
-    _, indices = model.kneighbors(track_features_scaled)
-    return [tracks[idx] for idx in indices.flatten()]
-    if not track_features:
-        print("No audio features found for the tracks in listening history.")
-        return []
+def get_user_top_tracks(sp, limit=50, time_range='medium_term'):
+    return sp.current_user_top_tracks(limit=limit, time_range=time_range)['items']
 
 
 def sentiment_score(text):
     analysis = TextBlob(text)
     return analysis.sentiment.polarity
-# Clustering and recommendations
-def recommend_songs(tracks, model, scaler, mood, n_recommendations=10):
-    mood_sentiment = sentiment_score(mood)
-    track_features = [sp.audio_features(track[0])[0] for track in tracks]
-    track_features_df = pd.DataFrame(track_features)
-    track_features_df['sentiment'] = [mood_sentiment] * len(track_features_df)
-    track_features_scaled = scaler.transform(track_features_df)
-    mood_cluster = model.predict(track_features_scaled)
-    cluster_songs = track_features_df[track_features_df['cluster'] == mood_cluster[0]]
-    recommendations = cluster_songs.sample(min(n_recommendations, len(cluster_songs)))
-    return recommendations.index
 
 
-history = get_top_tracks(time_range='short_term', limit=100)
+import pandas as pd
+
+# def create_dataset(playlist_id):
+#     tracks = sp.playlist_tracks(playlist_id)["items"]
+#     data = []
+#
+#     for track in tracks:
+#         track_info = track["track"]
+#         track_id = track_info["id"]
+#         title = track_info["name"]
+#         artist = track_info["artists"][0]["name"]
+#
+#         lyrics = get_lyrics(title, artist)
+#         if lyrics:
+#             audio_features = get_audio_features(track_id)
+#             sentiment = sentiment_score(lyrics)
+#             data.append({**audio_features, "sentiment": sentiment, "title": title, "artist": artist})
+#
+#     return pd.DataFrame(data)
 
 
+def get_genre_tracks(genre, limit=50):
+    result = sp.search(q=f'genre:"{genre}"', limit=limit, type='track')
+    tracks = result['tracks']['items']
+    track_ids = [track['id'] for track in tracks]
+    return track_ids
 
-filtered_tracks = collaborative_filtering(history)
 
-
-def create_dataset(tracks):
+def create_dataset(genres):
     data = []
-    for track_id, title, artist in tracks:
-        lyrics = get_lyrics(title, artist)
-        if lyrics:
-            audio_features = sp.audio_features([track_id])[0]
-            sentiment = sentiment_score(lyrics)
-            data.append({**audio_features, "sentiment": sentiment, "title": title, "artist": artist})
+    for genre in genres:
+        track_ids = get_genre_tracks(genre)
+
+        for track_id in track_ids:
+            track_info = sp.track(track_id)
+            title = track_info["name"]
+            artist = track_info["artists"][0]["name"]
+
+            lyrics = get_lyrics(title, artist)
+            if lyrics:
+                audio_features = get_audio_features(track_id)
+                sentiment = sentiment_score(lyrics)
+                data.append({**audio_features, "sentiment": sentiment, "title": title, "artist": artist})
+
     return pd.DataFrame(data)
 
-df = create_dataset(filtered_tracks)
+def create_dataset_from_playlist(playlist_id):
+    tracks = sp.playlist_tracks(playlist_id)["items"]
+    data = []
+
+    for track in tracks:
+        track_info = track["track"]
+        track_id = track_info["id"]
+        title = track_info["name"]
+        artist = track_info["artists"][0]["name"]
+
+        lyrics = get_lyrics(title, artist)
+        if lyrics:
+            audio_features = get_audio_features(track_id)
+            sentiment = sentiment_score(lyrics)
+            data.append({**audio_features, "sentiment": sentiment, "title": title, "artist": artist})
+
+    return pd.DataFrame(data)
+
+# user_mood = input("Enter your mood: ").lower()
+#
+# if user_mood == 'sad' or user_mood == 'bad':
+#     sad_playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
+#     sad_songs_df = create_dataset_from_playlist(sad_playlist_id)
+#     recommended_songs = recommend_songs(sad_songs_df, model, scaler, user_mood)
+# else:
+#     recommended_songs = recommend_songs(df, model, scaler, user_mood)
+
+
+genres_to_search = ['rock', 'pop', 'jazz', 'electronic', 'hip hop', 'classical']
+data_file = "multi_genre_data.pkl"
+
+if os.path.exists(data_file):
+    with open(data_file, 'rb') as f:
+        df = pickle.load(f)
+else:
+    df = create_dataset(genres_to_search)
+    with open(data_file, 'wb') as f:
+        pickle.dump(df, f)
+
+# The rest of your existing code remains the same
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 def train_model(df, n_clusters=10):
     features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness', 'speechiness', 'valence', 'sentiment']
-    print("Dataframe columns:", df.columns)
     X = df[features]
 
     scaler = StandardScaler()
@@ -145,23 +159,63 @@ def train_model(df, n_clusters=10):
 
     return model, scaler
 
+
+def recommend_songs(source_df, model, scaler, mood, n_recommendations=10):
+    mood_sentiment = sentiment_score(mood)
+
+    mood_features = df.iloc[0][['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'loudness', 'speechiness', 'valence']].values
+    mood_features = list(mood_features)
+    mood_features.append(mood_sentiment)
+    mood_features = np.array([mood_features])
+
+
+    mood_features_scaled = scaler.transform(mood_features)
+
+
+
+    mood_cluster = model.predict(mood_features_scaled)
+
+    cluster_songs = df[df['cluster'] == mood_cluster[0]]
+    recommendations = cluster_songs.sample(min(n_recommendations, len(cluster_songs)))
+
+    return recommendations[['title', 'artist', 'sentiment']]
+
+def filter_songs_by_sentiment(recommended_songs, mood_sentiment, threshold=0.3):
+    filtered_songs = []
+    for _, row in recommended_songs.iterrows():
+        song_sentiment = row["sentiment"]
+        if abs(song_sentiment - mood_sentiment) <= threshold:
+            filtered_songs.append(row)
+    return pd.DataFrame(filtered_songs)
+
+
+
+
 model, scaler = train_model(df)
 
 
-user_mood = input("Enter your mood: ")
+# mood_sentiment = sentiment_score(user_mood)
+# recommended_songs = recommend_songs(df, model, scaler, user_mood)
+# filtered_songs = filter_songs_by_sentiment(recommended_songs, mood_sentiment)
+user_mood = input("Enter your mood: ").lower()
 
+if user_mood == 'sad' or user_mood == 'bad':
+    sad_playlist_id = "4PWQV9dQpT7As9OTZBqrR8"
+    sad_songs_df = create_dataset_from_playlist(sad_playlist_id)
+    recommended_songs = recommend_songs(sad_songs_df, model, scaler, user_mood)
+else:
+    recommended_songs = recommend_songs(df, model, scaler, user_mood)
 
-recommended_indices = recommend_songs(filtered_tracks, model, scaler, user_mood)
-recommended_songs = [filtered_tracks[idx] for idx in recommended_indices]
-
-
+# recommended_songs = recommend_songs(df, model, scaler, user_mood)
 print("\nRecommended songs for your mood:")
-for track_id, title, artist in recommended_songs:
-    print(f"{title} by {artist}")
+print(recommended_songs)
+
+import pygame
 
 
 def play_song(spotify_uri):
     pygame.mixer.init()
+
 
     track = sp.track(spotify_uri)
     preview_url = track['preview_url']
@@ -170,19 +224,98 @@ def play_song(spotify_uri):
         print("Sorry, no preview is available for this song.")
         return
 
+
     preview_file = f"{spotify_uri}_preview.mp3"
     if not os.path.exists(preview_file):
         import urllib.request
         urllib.request.urlretrieve(preview_url, preview_file)
 
+
     pygame.mixer.music.load(preview_file)
     pygame.mixer.music.play()
+
 
     while pygame.mixer.music.get_busy():
         pygame.time.Clock().tick(10)
 
-for track_id, title, artist in recommended_songs:
-    print(f"\nPlaying '{title}' by {artist}")
-    track = sp.track(track_id)
-    spotify_uri = track['uri']
-    play_song(spotify_uri)
+
+# import pygame.event
+#
+# def play_song(spotify_uri):
+#     pygame.init()
+#     pygame.mixer.init()
+#
+#     track = sp.track(spotify_uri)
+#     preview_url = track['preview_url']
+#
+#     if preview_url is None:
+#         print("Sorry, no preview is available for this song.")
+#         return
+#
+#     preview_file = f"{spotify_uri}_preview.mp3"
+#     if not os.path.exists(preview_file):
+#         import urllib.request
+#         urllib.request.urlretrieve(preview_url, preview_file)
+#
+#     pygame.mixer.music.load(preview_file)
+#     pygame.mixer.music.play()
+#
+#     while pygame.mixer.music.get_busy():
+#         pygame.time.Clock().tick(10)
+#         for event in pygame.event.get():
+#             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+#                 pygame.mixer.music.stop()
+#                 break
+
+
+for _, row in recommended_songs.iterrows():
+    print(f"\nPlaying '{row['title']}' by {row['artist']}")
+    track = sp.search(f"{row['title']} {row['artist']}", type='track', limit=1)
+    if track['tracks']['items']:
+        spotify_uri = track['tracks']['items'][0]['uri']
+        play_song(spotify_uri)
+    else:
+        print(f"Couldn't find the song '{row['title']}' by {row['artist']}' on Spotify.")
+
+
+def get_user_feedback(recommended_songs):
+    relevant_count = 0
+    total_recommended = len(recommended_songs)
+    for _, row in recommended_songs.iterrows():
+        print(f"Did you like '{row['title']}' by {row['artist']}? (yes/no)")
+        user_feedback = input().lower()
+        if user_feedback == 'yes':
+            relevant_count += 1
+    return relevant_count, total_recommended
+
+def evaluate_model(relevant_count, total_recommended, total_relevant):
+    precision = relevant_count / total_recommended if total_recommended > 0 else 0
+    recall = relevant_count / total_relevant if total_relevant > 0 else 0
+    f1_score = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+
+    return precision, recall, f1_score
+
+
+relevant_count, total_recommended = get_user_feedback(recommended_songs)
+
+
+total_relevant = 10
+
+precision, recall, f1_score = evaluate_model(relevant_count, total_recommended, total_relevant)
+
+
+print(f"F1-score: {f1_score:.2f}")
+
+if 0<=f1_score<=0.4:
+
+    print("Apologies for such recommendations. We shall try to do better next time")
+
+
+elif 0.4<=f1_score<=0.6:
+
+    print("Just okay then? We appreciate it but should certainly try to improve")
+
+
+else:
+
+    print("Great! We're glad you love our recommendations")
