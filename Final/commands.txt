@@ -1,0 +1,4 @@
+pip freeze > requirements.txt
+pip install -r requirements.txt
+python pagekite.py 5000 songapp-ashwin20288.pagekite.me
+python app.py
